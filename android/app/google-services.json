@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "296570786396",
+    "project_id": "svce-281f4",
+    "storage_bucket": "svce-281f4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:296570786396:android:16e6a29f2dd89614144c99",
+        "android_client_info": {
+          "package_name": "svce.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAsfg9B0rWl4RfsO8NoyJI7K0xSX60H3aU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
