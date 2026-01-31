@@ -25,7 +25,7 @@ Future<void> main() async {
       overrides: [
         sharedPreferencesProvider.overrideWithValue(sharedPreferences),
       ],
-      child: const SvceApp(),
+      child: const CollegesynxApp(),
     ),
   );
 }

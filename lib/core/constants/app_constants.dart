@@ -1,5 +1,5 @@
 class AppConstants {
-  static const String appName = 'SVCE College App';
+  static const String appName = 'CollegeSynx Admin';
   static const String fontFamily = 'Roboto'; // Configured via GoogleFonts
 
   // Storage Keys

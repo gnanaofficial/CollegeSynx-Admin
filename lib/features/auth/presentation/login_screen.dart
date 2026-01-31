@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../../../core/services/firebase_data_uploader.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/role_config.dart';
 import '../../../core/theme/app_colors.dart';
@@ -74,73 +76,81 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // --- TOP SECTION: Avatars ---
+              // --- TOP SECTION: Avatars (4 Roles) ---
               Expanded(
-                flex: 4,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Faculty Avatar (Top Right)
-                    Positioned(
-                      top: 30,
-                      right: 50,
-                      child: _buildAvatar(
-                        UserRole.faculty,
-                        'assets/images/facultyavatar.png',
-                        const Color(0xFFB57BA6),
-                        selectedRole,
-                      ),
-                    ),
-
-                    // Security Avatar (Bottom Center/Left)
-                    Positioned(
-                      top: 200,
-                      left: 80,
-                      child: _buildAvatar(
-                        UserRole.security,
-                        'assets/images/securityavatar.png',
-                        const Color(0xFF7CB342),
-                        selectedRole,
-                      ),
-                    ),
-
-                    // "Hey Admin!" Speech Bubble
-                    Positioned(
-                      top: 140,
-                      left: 150,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2A2A2A),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
+                flex:
+                    4, // Reduce top flex slightly to give more room to bottom if needed, or keep balanced
+                child: Center(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 20),
+                        // Row 1: HOD & Faculty
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildAvatar(
+                              UserRole.hod,
+                              'assets/images/hod_avatar.png',
+                              const Color(0xFF5C6BC0), // Indigo
+                              selectedRole,
+                              "HOD",
+                            ),
+                            const SizedBox(width: 40),
+                            _buildAvatar(
+                              UserRole.faculty,
+                              'assets/images/facultyavatar.png',
+                              const Color(0xFFB57BA6),
+                              selectedRole,
+                              "Faculty",
                             ),
                           ],
                         ),
-                        child: const Text(
-                          'Hey Admin!',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                        const SizedBox(height: 30),
+                        // Row 2: Security Admin & Security
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            _buildAvatar(
+                              UserRole.securityAdmin,
+                              'assets/images/security_admin_avatar.png',
+                              const Color(0xFF455A64), // Blue Grey
+                              selectedRole,
+                              "Chief Security",
+                            ),
+                            const SizedBox(width: 40),
+                            _buildAvatar(
+                              UserRole.security,
+                              'assets/images/securityavatar.png',
+                              const Color(0xFF7CB342),
+                              selectedRole,
+                              "Security",
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        // Help Text
+                        AnimatedOpacity(
+                          duration: const Duration(milliseconds: 300),
+                          opacity: selectedRole == null ? 1.0 : 0.0,
+                          child: const Text(
+                            'Select your role to login',
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 14,
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
 
               // --- BOTTOM SECTION: Login Form ---
               Expanded(
-                flex: 5,
+                flex: 6, // Increase bottom flex for form
                 child: Container(
                   decoration: const BoxDecoration(
                     color: Colors.white,
@@ -149,27 +159,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       topRight: Radius.circular(32),
                     ),
                   ),
-                  padding: const EdgeInsets.all(28),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 32,
+                  ),
                   child: SingleChildScrollView(
                     child: Form(
                       key: _formKey,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Center(
-                            child: Text(
-                              'Admin Login',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1A1A1A),
+                          Center(
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              child: Text(
+                                selectedRole?.displayName ??
+                                    'Sign In', // Changed from Welcome/HOD default
+                                key: ValueKey(selectedRole),
+                                style: const TextStyle(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1A1A1A),
+                                ),
                               ),
                             ),
                           ),
                           const SizedBox(height: 8),
                           Center(
                             child: Text(
-                              'using the credentials shared by SVCE.',
+                              'using the credentials shared by CollegeSynx.',
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 13,
@@ -201,7 +219,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                             ),
                             validator: (v) => v!.isEmpty ? 'Required' : null,
+                            enabled:
+                                selectedRole !=
+                                null, // Disable if no role selected (optional, user asked to click avatar to enter credentials)
                           ),
+                          if (selectedRole == null)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                top: 8.0,
+                                left: 10,
+                              ),
+                              child: Text(
+                                'Please select a role above first',
+                                style: TextStyle(
+                                  color: Colors.orange[800],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+
                           const SizedBox(height: 16),
 
                           // Password
@@ -240,6 +276,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                             ),
                             validator: (v) => v!.isEmpty ? 'Required' : null,
+                            enabled: selectedRole != null,
                           ),
                           const SizedBox(height: 16),
 
@@ -316,7 +353,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             width: double.infinity,
                             height: 54,
                             child: ElevatedButton(
-                              onPressed: authState.isLoading ? null : _login,
+                              onPressed:
+                                  (authState.isLoading || selectedRole == null)
+                                  ? null
+                                  : _login,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF7C3AED),
                                 foregroundColor: Colors.white,
@@ -350,13 +390,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           // Support Text
                           Center(
                             child: Text(
-                              'For issue help admin@svce.edu.in',
+                              'For issue help admin@collegesynx.edu.in',
                               style: TextStyle(
                                 color: Colors.grey[600],
                                 fontSize: 13,
                                 fontWeight: FontWeight.w400,
                               ),
                             ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Seed Data Button (Debug Only)
+                          TextButton(
+                            onPressed: () async {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Seeding Database... Check Logs.',
+                                  ),
+                                ),
+                              );
+                              await FirebaseDataUploader().uploadAllData();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Database Seeded! Try Login.'),
+                                ),
+                              );
+                            },
+                            child: const Text('DEBUG: Seed Database Variables'),
                           ),
                         ],
                       ),
@@ -376,52 +438,70 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     String assetPath,
     Color backgroundColor,
     UserRole? selectedRole,
+    String label,
   ) {
     final isSelected = selectedRole == role;
     return GestureDetector(
       onTap: () {
         ref.read(selectedRoleProvider.notifier).state = role;
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOutCubic,
-        height: isSelected ? 130 : 110,
-        width: isSelected ? 130 : 110,
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          shape: BoxShape.circle,
-          border: isSelected ? Border.all(color: Colors.white, width: 4) : null,
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: backgroundColor.withOpacity(0.4),
-                    blurRadius: 20,
-                    spreadRadius: 4,
-                  ),
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 15,
-                    offset: const Offset(0, 8),
-                  ),
-                ]
-              : [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-          image: DecorationImage(
-            image: AssetImage(assetPath),
-            fit: BoxFit.cover,
-            colorFilter: isSelected
-                ? null
-                : ColorFilter.mode(
-                    Colors.black.withOpacity(0.4),
-                    BlendMode.darken,
-                  ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            height: isSelected
+                ? 100
+                : 80, // Slightly smaller base size to ensure fit
+            width: isSelected ? 100 : 80,
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              shape: BoxShape.circle,
+              border: isSelected
+                  ? Border.all(color: Colors.white, width: 3)
+                  : null,
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: backgroundColor.withOpacity(0.4),
+                        blurRadius: 15,
+                        spreadRadius: 2,
+                      ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+              image: DecorationImage(
+                image: AssetImage(assetPath),
+                fit: BoxFit.cover,
+                colorFilter: isSelected
+                    ? null
+                    : ColorFilter.mode(
+                        Colors.black.withOpacity(0.5),
+                        BlendMode.darken,
+                      ),
+              ),
+            ),
           ),
-        ),
+          const SizedBox(height: 8),
+          AnimatedOpacity(
+            duration: const Duration(milliseconds: 200),
+            opacity: isSelected ? 1.0 : 0.7,
+            child: Text(
+              label,
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                fontSize: isSelected ? 13 : 11,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

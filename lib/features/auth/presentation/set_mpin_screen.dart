@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/config/role_config.dart';
 import '../state/auth_provider.dart';
 
 class SetMpinScreen extends ConsumerStatefulWidget {
@@ -33,20 +34,22 @@ class _SetMpinScreenState extends ConsumerState<SetMpinScreen> {
           // Mark verified so strict router logic is satisfied
           ref.read(authProvider.notifier).verifyMpin();
 
-          // Navigate to dashboard
+          // Navigate to dashboard based on role
           if (mounted) {
-            // Need to trigger router refresh or explicit go
-            // Router listener should handle it, but explicit go is safer
-            // role based handled by Router redirect mostly, but we are already 'authenticated'
-            // check role
-            final user = ref.read(authProvider).user;
-            if (user?.role.name == 'student') {
-              context.go('/student-dashboard');
-            } else if (user?.role.name == 'faculty') {
-              context.go('/faculty-dashboard');
+            final userRole = ref.read(authProvider).user?.role;
+            String targetRoute = '/faculty-dashboard'; // Default fallback
+
+            if (userRole == UserRole.hod) {
+              targetRoute = '/hod-dashboard';
+            } else if (userRole == UserRole.securityAdmin) {
+              targetRoute = '/security-admin-dashboard';
+            } else if (userRole == UserRole.security) {
+              targetRoute = '/security-dashboard';
             } else {
-              context.go('/student-dashboard');
+              targetRoute = '/faculty-dashboard';
             }
+
+            context.go(targetRoute);
           }
         } else {
           ScaffoldMessenger.of(

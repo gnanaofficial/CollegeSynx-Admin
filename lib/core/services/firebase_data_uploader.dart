@@ -7,14 +7,22 @@ class FirebaseDataUploader {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  /// Upload all initial data to Firebase
+  // Single Root Collection 'collegesynx'
+  // Structure:
+  // users: collegesynx/data/users/{uid}
+  // events: collegesynx/data/events/{id}
+  // students: collegesynx/database/hierarchy/... (keeping logic similar but nested)
+
   Future<void> uploadAllData() async {
-    print('🚀 Starting Firebase data upload...');
+    print('🚀 Starting Firebase data upload into "collegesynx" collection...');
 
     try {
       await createFacultyAccount();
       await createSecurityAccount();
+      await createHodAccount();
+      await createSecurityAdminAccount();
       await uploadEvents();
+      // await uploadStudents(); // Optional, uncomment if needed
 
       print('✅ All data uploaded successfully!');
     } catch (e) {
@@ -24,69 +32,125 @@ class FirebaseDataUploader {
 
   /// Create faculty test account
   Future<void> createFacultyAccount() async {
-    print('📝 Creating faculty account...');
-
-    try {
-      // Create auth user
-      final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: 'faculty@svce.edu.in',
-        password: 'password123',
-      );
-
-      final uid = userCredential.user!.uid;
-
-      // Create Firestore document
-      await _firestore.collection('users').doc(uid).set({
-        'id': uid,
-        'name': 'Dr. Faculty Test',
-        'email': 'faculty@svce.edu.in',
-        'role': 'faculty',
-        'collegeId': 'faculty',
-        'createdAt': FieldValue.serverTimestamp(),
-        'lastLogin': FieldValue.serverTimestamp(),
-      });
-
-      print('✅ Faculty account created: $uid');
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'email-already-in-use') {
-        print('⚠️  Faculty account already exists');
-      } else {
-        print('❌ Error creating faculty: ${e.message}');
-      }
-    }
+    await _createAccount(
+      email: 'faculty@collegesynx.edu.in',
+      password: 'password123',
+      role: 'faculty',
+      name: 'Dr. Faculty User',
+      collegeId: 'faculty',
+      additionalData: {},
+    );
   }
 
   /// Create security test account
   Future<void> createSecurityAccount() async {
-    print('📝 Creating security account...');
+    await _createAccount(
+      email: 'security@collegesynx.edu.in',
+      password: 'password123',
+      role: 'security',
+      name: 'Security Guard',
+      collegeId: 'security',
+      additionalData: {},
+    );
+  }
 
+  /// Create HOD test account
+  Future<void> createHodAccount() async {
+    await _createAccount(
+      email: 'hod.csm@collegesynx.edu.in',
+      password: 'password123',
+      role: 'hod',
+      name: 'Dr. HOD CSM',
+      collegeId: 'hod',
+      additionalData: {'department': 'CSM'},
+    );
+  }
+
+  /// Create Security Admin test account
+  Future<void> createSecurityAdminAccount() async {
+    await _createAccount(
+      email: 'security.chief@collegesynx.edu.in',
+      password: 'password123',
+      role: 'securityAdmin',
+      name: 'Chief Security Officer',
+      collegeId: 'securityadmin',
+      additionalData: {},
+    );
+  }
+
+  /// Helper to create Auth User + Firestore Doc
+  Future<void> _createAccount({
+    required String email,
+    required String password,
+    required String role,
+    required String name,
+    required String collegeId,
+    required Map<String, dynamic> additionalData,
+  }) async {
+    print('📝 Creating $role account ($email)...');
     try {
-      // Create auth user
-      final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: 'security@svce.edu.in',
-        password: 'password123',
-      );
+      // 1. Create in Firebase Auth
+      UserCredential userCredential;
+      try {
+        userCredential = await _auth.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'email-already-in-use') {
+          print(
+            '⚠️  Account $email already exists in Auth. Updating Firestore...',
+          );
+          // Proceed to update Firestore even if Auth exists, to ensure data consistency
+          // We need the UID. Since we can't get it from failure, we'll try login or assuming existing UID/structure?
+          // Actually, we can't get UID easily if we don't sign in.
+          // BUT, we can try to sign in to get the UID.
+          try {
+            userCredential = await _auth.signInWithEmailAndPassword(
+              email: email,
+              password: password,
+            );
+          } catch (loginError) {
+            print(
+              '❌ Could not login to existing account to update Firestore: $loginError',
+            );
+            return;
+          }
+        } else {
+          rethrow;
+        }
+      }
 
       final uid = userCredential.user!.uid;
 
-      // Create Firestore document
-      await _firestore.collection('users').doc(uid).set({
+      // 2. Create/Update in Firestore under 'collegesynx/data/users/{uid}'
+      // We use a subcollection 'users' inside a document 'data' of the root collection 'collegesynx'
+      // Path: collegesynx/data/users/{uid} implies:
+      // Collection: collegesynx
+      // Doc: data
+      // SubCollection: users
+      // Doc: {uid}
+
+      final docRef = _firestore
+          .collection('collegesynx')
+          .doc('data')
+          .collection('users')
+          .doc(uid);
+
+      await docRef.set({
         'id': uid,
-        'name': 'Security Officer',
-        'email': 'security@svce.edu.in',
-        'role': 'security',
-        'collegeId': 'security',
+        'name': name,
+        'email': email,
+        'role': role,
+        'collegeId': collegeId,
         'createdAt': FieldValue.serverTimestamp(),
         'lastLogin': FieldValue.serverTimestamp(),
-      });
+        ...additionalData,
+      }, SetOptions(merge: true));
 
-      print('✅ Security account created: $uid');
-    } on FirebaseAuthException catch (e) {
-      if (e.code == 'email-already-in-use') {
-        print('⚠️  Security account already exists');
-      } else {
-        print('❌ Error creating security: ${e.message}');
-      }
+      print('✅ Account $role synced to Firestore path: ${docRef.path}');
+    } catch (e) {
+      print('❌ Error creating/syncing $role: $e');
     }
   }
 
@@ -98,7 +162,7 @@ class FirebaseDataUploader {
       {
         'id': 'event001',
         'title': 'Annual Day 2026',
-        'description': 'The grand annual celebration of SVCE.',
+        'description': 'The grand annual celebration of CollegeSynx.',
         'date': DateTime.now().add(const Duration(days: 5)),
         'location': 'Main Auditorium',
         'requiresLiveVerification': true,
@@ -117,75 +181,21 @@ class FirebaseDataUploader {
         'checkedInCount': 0,
         'createdAt': FieldValue.serverTimestamp(),
       },
-      {
-        'id': 'event003',
-        'title': 'Alumni Meet',
-        'description': 'Networking event for alumni.',
-        'date': DateTime.now().add(const Duration(days: 20)),
-        'location': 'College Grounds',
-        'requiresLiveVerification': true,
-        'totalRegistrations': 500,
-        'checkedInCount': 0,
-        'createdAt': FieldValue.serverTimestamp(),
-      },
     ];
 
     final batch = _firestore.batch();
 
     for (var event in events) {
-      final docRef = _firestore.collection('events').doc(event['id'] as String);
+      // Path: collegesynx/data/events/{id}
+      final docRef = _firestore
+          .collection('collegesynx')
+          .doc('data')
+          .collection('events')
+          .doc(event['id'] as String);
       batch.set(docRef, event);
     }
 
     await batch.commit();
-    print('✅ ${events.length} events uploaded');
-  }
-
-  /// Upload sample students (optional - add your own student data)
-  Future<void> uploadStudents() async {
-    print('📝 Uploading students...');
-
-    final students = [
-      {
-        'id': '24BFA33L12',
-        'name': 'Kalapati Ganana Sekhar',
-        'regNo': '24BFA33L12',
-        'program': 'B.Tech',
-        'batch': '2024-2027',
-        'department': 'CSM',
-        'section': 'E',
-        'college': 'S.V. College of Engineering',
-        'photoUrl': 'assets/images/24BFA33L12.jpeg',
-        'barcodeValue': '24BFA33L12',
-        'createdAt': FieldValue.serverTimestamp(),
-      },
-      {
-        'id': '24BFA33L04',
-        'name': 'Anangi Vignesh Kumar',
-        'regNo': '24BFA33L04',
-        'program': 'B.Tech',
-        'batch': '2024-2027',
-        'department': 'CSM',
-        'section': 'E',
-        'college': 'S.V. College of Engineering',
-        'photoUrl': 'assets/images/student_placeholder.png',
-        'barcodeValue': '24BFA33L04',
-        'createdAt': FieldValue.serverTimestamp(),
-      },
-    ];
-
-    // Upload to hierarchical structure: Database/Students/{program}/{batch}/{department}/{id}
-    for (var student in students) {
-      await _firestore
-          .collection('Database')
-          .doc('Students')
-          .collection(student['program'] as String)
-          .doc(student['batch'] as String)
-          .collection(student['department'] as String)
-          .doc(student['id'] as String)
-          .set(student);
-    }
-
-    print('✅ ${students.length} students uploaded');
+    print('✅ ${events.length} events uploaded to collegesynx/data/events');
   }
 }

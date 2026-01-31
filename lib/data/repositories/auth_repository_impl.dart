@@ -30,7 +30,7 @@ class AuthRepositoryImpl implements AuthRepository {
       // Convert collegeId to email format if needed
       String email = collegeId.contains('@')
           ? collegeId
-          : '$collegeId@svce.edu.in';
+          : '$collegeId@collegesynx.edu.in';
 
       // Sign in with Firebase Auth
       final userCredential = await _auth.signInWithEmailAndPassword(
@@ -44,10 +44,16 @@ class AuthRepositoryImpl implements AuthRepository {
       }
 
       // Fetch user data from Firestore
-      final userDoc = await _firestore.collection('users').doc(uid).get();
+      final userDoc = await _firestore
+          .collection('collegesynx')
+          .doc('data')
+          .collection('users')
+          .doc(uid)
+          .get();
 
       if (!userDoc.exists) {
-        // Create user document if it doesn't exist (first time login)
+        // Create user document if it doesn't exist (first time login, fallback)
+        // Note: Ideally, admin should create accounts, but we keep this for robust testing.
         final userData = {
           'id': uid,
           'name': userCredential.user?.displayName ?? 'User',
@@ -58,7 +64,12 @@ class AuthRepositoryImpl implements AuthRepository {
           'lastLogin': FieldValue.serverTimestamp(),
         };
 
-        await _firestore.collection('users').doc(uid).set(userData);
+        await _firestore
+            .collection('collegesynx')
+            .doc('data')
+            .collection('users')
+            .doc(uid)
+            .set(userData);
 
         final user = UserEntity(
           id: uid,
@@ -87,9 +98,12 @@ class AuthRepositoryImpl implements AuthRepository {
       }
 
       // Update last login
-      await _firestore.collection('users').doc(uid).update({
-        'lastLogin': FieldValue.serverTimestamp(),
-      });
+      await _firestore
+          .collection('collegesynx')
+          .doc('data')
+          .collection('users')
+          .doc(uid)
+          .update({'lastLogin': FieldValue.serverTimestamp()});
 
       final user = UserEntity(
         id: uid,
@@ -159,6 +173,8 @@ class AuthRepositoryImpl implements AuthRepository {
 
       // Fetch from Firestore
       final userDoc = await _firestore
+          .collection('collegesynx')
+          .doc('data')
           .collection('users')
           .doc(firebaseUser.uid)
           .get();
@@ -209,17 +225,28 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   UserRole _parseRole(String? roleString) {
-    switch (roleString?.toLowerCase()) {
+    switch (roleString?.trim().toLowerCase()) {
       case 'faculty':
         return UserRole.faculty;
       case 'security':
         return UserRole.security;
       case 'admin':
         return UserRole.admin;
+      case 'hod':
+        return UserRole.hod;
       case 'student':
-        return UserRole.student;
+        print(
+          'Warning: "student" role detected. Mapping to Faculty to fix glitch.',
+        );
+        return UserRole.faculty; // Sync fix: Treat as Faculty
+      case 'securityadmin':
+        return UserRole.securityAdmin;
+      case 'principal':
+        return UserRole.principal;
       default:
-        return UserRole.student; // Default fallback
+        // Log warning if role is unknown?
+        print('Warning: Unknown role "$roleString", defaulting to Faculty');
+        return UserRole.faculty; // Default fallback to Faculty
     }
   }
 }

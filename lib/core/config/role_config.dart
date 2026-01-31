@@ -1,4 +1,12 @@
-enum UserRole { student, faculty, admin, hod, principal, security }
+enum UserRole {
+  student,
+  faculty,
+  admin,
+  hod,
+  principal,
+  security,
+  securityAdmin,
+}
 
 extension UserRoleExtension on UserRole {
   String get displayName {
@@ -15,6 +23,8 @@ extension UserRoleExtension on UserRole {
         return 'Principal';
       case UserRole.security:
         return 'Security';
+      case UserRole.securityAdmin:
+        return 'Security Admin';
     }
   }
 }

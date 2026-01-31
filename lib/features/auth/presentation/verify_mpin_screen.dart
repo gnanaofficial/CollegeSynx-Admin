@@ -66,7 +66,7 @@ class _VerifyMpinScreenState extends ConsumerState<VerifyMpinScreen> {
               ),
               const SizedBox(height: 24),
               const Text(
-                'Unlock SVCE',
+                'Unlock CollegeSynx',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),

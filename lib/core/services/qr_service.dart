@@ -7,7 +7,7 @@ enum QrValidationResult { success, tooEarly, expired, invalid }
 
 class QrService {
   // Secret key for HMAC (simulated)
-  static const String _secretKey = "svce_secure_event_key";
+  static const String _secretKey = "collegesynx_secure_event_key";
 
   /// Generates a time-bound QR payload
   /// Payload Format: guestId|eventId|expiryEpoch|HMAC

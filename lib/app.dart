@@ -4,8 +4,8 @@ import 'core/theme/app_theme.dart';
 import 'core/routing/app_router.dart';
 import 'core/constants/app_constants.dart';
 
-class SvceApp extends ConsumerWidget {
-  const SvceApp({super.key});
+class CollegesynxApp extends ConsumerWidget {
+  const CollegesynxApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

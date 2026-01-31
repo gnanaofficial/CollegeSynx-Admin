@@ -18,7 +18,7 @@ class StudentRepositoryImpl implements StudentRepository {
     try {
       // Use collectionGroup to search across all nested 'students' collections
       final snapshot = await _firestore
-          .collectionGroup('students')
+          .collectionGroup('Students')
           .where('rollNo', isEqualTo: rollNo)
           .limit(1)
           .get();
@@ -42,7 +42,7 @@ class StudentRepositoryImpl implements StudentRepository {
   ) async {
     try {
       final snapshot = await _firestore
-          .collectionGroup('students')
+          .collectionGroup('Students')
           .where('barcode', isEqualTo: barcode)
           .limit(1)
           .get();
@@ -62,14 +62,19 @@ class StudentRepositoryImpl implements StudentRepository {
     required String branch,
   }) async {
     try {
+      // Assumes hierarchy: Collegesynx_Database/Hierarchy/Programs/{program}/Batches/{batch}/Departments/{dept}/Students
+      // Mapping: dept argument -> department, batch -> batch, but we need Program?
+      // Assuming 'B.Tech' as default program for now, or we could pass it.
       final snapshot = await _firestore
-          .collection('departments')
-          .doc(dept)
-          .collection('batches')
+          .collection('Collegesynx_Database')
+          .doc('Hierarchy')
+          .collection('Programs')
+          .doc('B.Tech')
+          .collection('Batches')
           .doc(batch)
-          .collection('branches')
-          .doc(branch)
-          .collection('students')
+          .collection('Departments')
+          .doc(branch) // 'branch' usually maps to department in this context
+          .collection('Students')
           .orderBy('rollNo')
           .get();
 
@@ -120,7 +125,7 @@ class StudentRepositoryImpl implements StudentRepository {
       // 1. Find the student document
       // We have to search again because we need the DocumentReference
       final snapshot = await _firestore
-          .collectionGroup('students')
+          .collectionGroup('Students')
           .where('rollNo', isEqualTo: rollNo)
           .limit(1)
           .get();
@@ -157,7 +162,7 @@ class StudentRepositoryImpl implements StudentRepository {
     try {
       // 1. Find the student document
       final snapshot = await _firestore
-          .collectionGroup('students')
+          .collectionGroup('Students')
           .where('rollNo', isEqualTo: rollNo)
           .limit(1)
           .get();

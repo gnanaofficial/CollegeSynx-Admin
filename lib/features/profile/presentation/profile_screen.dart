@@ -11,7 +11,7 @@ class ProfileScreen extends ConsumerWidget {
     const name = "Dr. Anita Sharma";
     const role = "Associate Professor, Dept. of CS";
     const id = "FAC-9021";
-    const email = "anita.s@svce.edu";
+    const email = "anita.s@collegesynx.edu";
     const phone = "+91 98765 43210";
     const location = "Block C, Room 304";
 
