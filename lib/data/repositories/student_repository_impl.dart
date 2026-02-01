@@ -17,16 +17,14 @@ class StudentRepositoryImpl implements StudentRepository {
   Future<Either<Exception, Student?>> getStudentByRollNo(String rollNo) async {
     try {
       // Use collectionGroup to search across all nested 'students' collections
+      // FIXED: Collection name is 'students' (lowercase) based on user screenshot
       final snapshot = await _firestore
-          .collectionGroup('Students')
+          .collectionGroup('students')
           .where('rollNo', isEqualTo: rollNo)
           .limit(1)
           .get();
 
       if (snapshot.docs.isEmpty) {
-        // Fallback: Try searching by document ID if rollNo field is not indexed or unreliable
-        // This queries across ALL students which performs a broad scan, might need indexing
-        // NOTE: collectionGroup queries require an index on the field being queried.
         return const Right(null);
       }
 
@@ -41,8 +39,9 @@ class StudentRepositoryImpl implements StudentRepository {
     String barcode,
   ) async {
     try {
+      // FIXED: Collection name is 'students' (lowercase)
       final snapshot = await _firestore
-          .collectionGroup('Students')
+          .collectionGroup('students')
           .where('barcode', isEqualTo: barcode)
           .limit(1)
           .get();
@@ -62,19 +61,19 @@ class StudentRepositoryImpl implements StudentRepository {
     required String branch,
   }) async {
     try {
-      // Assumes hierarchy: Collegesynx_Database/Hierarchy/Programs/{program}/Batches/{batch}/Departments/{dept}/Students
-      // Mapping: dept argument -> department, batch -> batch, but we need Program?
-      // Assuming 'B.Tech' as default program for now, or we could pass it.
+      // Updated path based on screenshot:
+      // /departments/B.Tech/batches/2026-2030/branches/CSM/students
+      // Note: 'dept' param likely maps to 'B.Tech' (program) or similar.
+      // We will assume 'departments' is the root collection.
+
       final snapshot = await _firestore
-          .collection('Collegesynx_Database')
-          .doc('Hierarchy')
-          .collection('Programs')
-          .doc('B.Tech')
-          .collection('Batches')
-          .doc(batch)
-          .collection('Departments')
-          .doc(branch) // 'branch' usually maps to department in this context
-          .collection('Students')
+          .collection('departments')
+          .doc(dept) // e.g., 'B.Tech'
+          .collection('batches')
+          .doc(batch) // e.g., '2026-2030'
+          .collection('branches')
+          .doc(branch) // e.g., 'CSM'
+          .collection('students')
           .orderBy('rollNo')
           .get();
 
@@ -123,9 +122,9 @@ class StudentRepositoryImpl implements StudentRepository {
   ) async {
     try {
       // 1. Find the student document
-      // We have to search again because we need the DocumentReference
+      // FIXED: Collection name is 'students' (lowercase)
       final snapshot = await _firestore
-          .collectionGroup('Students')
+          .collectionGroup('students')
           .where('rollNo', isEqualTo: rollNo)
           .limit(1)
           .get();
@@ -137,7 +136,6 @@ class StudentRepositoryImpl implements StudentRepository {
       final docRef = snapshot.docs.first.reference;
 
       // 2. Update the document
-      // Clean up legacy fields to avoid confusion
       await docRef.update({
         'embedding': embedding,
         'embeddings': FieldValue.delete(), // Legacy array
@@ -154,6 +152,31 @@ class StudentRepositoryImpl implements StudentRepository {
   }
 
   @override
+  Future<void> updateStudentCredits(String studentId, int newCredits) async {
+    try {
+      // Since students are in subcollections, we need to find the document first
+      final querySnapshot = await _firestore
+          .collectionGroup('students')
+          .where(FieldPath.documentId, isEqualTo: studentId)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        throw Exception('Student not found: $studentId');
+      }
+
+      final docRef = querySnapshot.docs.first.reference;
+
+      await docRef.update({
+        'credits': newCredits,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      throw Exception('Failed to update student credits: $e');
+    }
+  }
+
+  @override
   Future<Either<Exception, void>> updateStudentEmbeddings(
     String rollNo,
     List<List<double>> embeddings,
@@ -161,8 +184,9 @@ class StudentRepositoryImpl implements StudentRepository {
   ) async {
     try {
       // 1. Find the student document
+      // FIXED: Collection name is 'students' (lowercase)
       final snapshot = await _firestore
-          .collectionGroup('Students')
+          .collectionGroup('students')
           .where('rollNo', isEqualTo: rollNo)
           .limit(1)
           .get();
@@ -173,9 +197,11 @@ class StudentRepositoryImpl implements StudentRepository {
 
       final docRef = snapshot.docs.first.reference;
 
-      // 2. Update Firestore with flattened embeddings (SIMPLE - NO CLOUD STORAGE)
+      // 2. Update Firestore
+      // We write BOTH the flattened fields (for existing compatibility) AND the array (for future proofing)
       await docRef.update({
-        'embedding1': embeddings.length > 0 ? embeddings[0] : null,
+        'embeddings': embeddings, // Standard array format
+        'embedding1': embeddings.isNotEmpty ? embeddings[0] : null,
         'embedding2': embeddings.length > 1 ? embeddings[1] : null,
         'embedding3': embeddings.length > 2 ? embeddings[2] : null,
         'embeddingMetadata': {

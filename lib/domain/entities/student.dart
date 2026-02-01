@@ -39,6 +39,9 @@ class Student extends Equatable {
   // Metadata for embeddings (timestamps, quality scores, pose angles)
   final Map<String, dynamic>? embeddingMetadata;
 
+  // Gamification
+  final int credits;
+
   const Student({
     required this.rollNo,
     required this.name,
@@ -48,6 +51,7 @@ class Student extends Equatable {
     required this.year,
     required this.section,
     required this.photoUrl,
+    this.credits = 100, // Default credits
     this.firestorePath,
     this.embedding,
     this.embeddings,
@@ -76,6 +80,33 @@ class Student extends Equatable {
       return '$baseUrl${url.startsWith('/') ? url.substring(1) : url}';
     }
 
+    // Logic to handle multiple embedding storage formats
+    List<List<double>>? parsedEmbeddings;
+
+    if (data['embeddings'] != null) {
+      // 1. Standard Array format
+      parsedEmbeddings = (data['embeddings'] as List)
+          .map((e) => List<double>.from(e))
+          .toList();
+    } else {
+      // 2. Flattened Fields format (embedding1, embedding2, ...)
+      // This fixes the issue where app ignores multi-angle data
+      final List<List<double>> recovered = [];
+      if (data['embedding1'] != null) {
+        recovered.add(List<double>.from(data['embedding1']));
+      }
+      if (data['embedding2'] != null) {
+        recovered.add(List<double>.from(data['embedding2']));
+      }
+      if (data['embedding3'] != null) {
+        recovered.add(List<double>.from(data['embedding3']));
+      }
+
+      if (recovered.isNotEmpty) {
+        parsedEmbeddings = recovered;
+      }
+    }
+
     return Student(
       rollNo: doc.id,
       name: data['name']?.toString() ?? '',
@@ -97,16 +128,15 @@ class Student extends Equatable {
       barcode: data['barcode']?.toString(),
       adharNo: data['adharNo']?.toString(),
       updatedAt: data['updatedAt']?.toString(),
+      credits: (data['credits'] is num)
+          ? (data['credits'] as num).toInt()
+          : 100,
       // Legacy single embedding support
       embedding: data['embedding'] != null
           ? List<double>.from(data['embedding'])
           : null,
-      // Multi-angle embeddings
-      embeddings: data['embeddings'] != null
-          ? (data['embeddings'] as List)
-                .map((e) => List<double>.from(e))
-                .toList()
-          : null,
+      // Multi-angle embeddings (Unified)
+      embeddings: parsedEmbeddings,
       embeddingMetadata: data['embeddingMetadata'] != null
           ? Map<String, dynamic>.from(data['embeddingMetadata'])
           : null,
@@ -124,6 +154,7 @@ class Student extends Equatable {
       'year': year,
       'section': section,
       'photoUrl': photoUrl,
+      'credits': credits,
       if (startYear != null) 'startYear': startYear,
       if (endYear != null) 'endYear': endYear,
       if (fatherName != null) 'fatherName': fatherName,
@@ -172,5 +203,6 @@ class Student extends Equatable {
     embedding,
     embeddings,
     embeddingMetadata,
+    credits,
   ];
 }

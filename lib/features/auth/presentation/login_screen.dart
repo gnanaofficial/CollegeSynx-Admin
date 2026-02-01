@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/services/firebase_data_uploader.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/role_config.dart';
 import '../../../core/theme/app_colors.dart';
@@ -397,28 +396,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 fontWeight: FontWeight.w400,
                               ),
                             ),
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          // Seed Data Button (Debug Only)
-                          TextButton(
-                            onPressed: () async {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Seeding Database... Check Logs.',
-                                  ),
-                                ),
-                              );
-                              await FirebaseDataUploader().uploadAllData();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Database Seeded! Try Login.'),
-                                ),
-                              );
-                            },
-                            child: const Text('DEBUG: Seed Database Variables'),
                           ),
                         ],
                       ),

@@ -22,35 +22,45 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-
-    // Initialize controller
     _controller = MobileScannerController(
-      detectionSpeed: DetectionSpeed.normal,
-      torchEnabled: false,
+      detectionSpeed: DetectionSpeed.noDuplicates,
+      autoStart: false, // Critical: Don't auto-start, wait for permission
+      // formats: [BarcodeFormat.qrCode], // Allow all formats
     );
-
+    WidgetsBinding.instance.addObserver(this);
     _checkPermission();
   }
 
   Future<void> _checkPermission() async {
     final permissionService = ref.read(permissionServiceProvider);
-
     final status = await permissionService.getCameraPermissionStatus();
 
-    if (status.isGranted) {
-      // PermissionStatus.granted has isGranted via extension from permission_handler
-      setState(() => _isPermissionGranted = true);
-    } else {
-      final hasRequested = permissionService.hasRequestedCameraPermission;
-
-      if (!hasRequested) {
-        final granted = await permissionService.requestCameraPermission();
-        setState(() => _isPermissionGranted = granted);
+    if (mounted) {
+      if (status.isGranted) {
+        setState(() => _isPermissionGranted = true);
+        // Small delay to ensure surface is ready
+        await Future.delayed(const Duration(milliseconds: 500));
+        try {
+          await _controller.start();
+        } catch (e) {
+          debugPrint('Failed to start scanner: $e');
+        }
       } else {
-        // Check if permanently denied or just denied
-        // For now, if denied, we show the denied UI
-        setState(() => _isPermissionGranted = false);
+        final hasRequested = permissionService.hasRequestedCameraPermission;
+        if (!hasRequested) {
+          final granted = await permissionService.requestCameraPermission();
+          setState(() => _isPermissionGranted = granted);
+          if (granted) {
+            await Future.delayed(const Duration(milliseconds: 500));
+            try {
+              await _controller.start();
+            } catch (e) {
+              debugPrint('Failed to start scanner: $e');
+            }
+          }
+        } else {
+          setState(() => _isPermissionGranted = false);
+        }
       }
     }
   }
@@ -340,6 +350,41 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen>
           MobileScanner(
             controller: _controller,
             onDetect: _onDetect,
+            errorBuilder: (context, error, child) {
+              return Container(
+                color: Colors.black,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        color: Colors.red,
+                        size: 48,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Scanner Error: ${error.errorCode}',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => _controller.start(),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+            placeholderBuilder: (context, child) {
+              return Container(
+                color: Colors.black,
+                child: const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+              );
+            },
             overlayBuilder: (context, constraints) {
               return Container(
                 decoration: ShapeDecoration(

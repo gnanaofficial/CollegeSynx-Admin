@@ -6,7 +6,9 @@ import '../../../core/widgets/full_screen_image_viewer.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/discipline_case.dart';
-import '../../../data/repositories/mock_discipline_repository.dart';
+import '../../../data/providers/discipline_provider.dart';
+import '../../auth/state/auth_provider.dart';
+import '../../../core/config/role_config.dart';
 
 class CreateCaseFlow extends ConsumerStatefulWidget {
   final String studentId;
@@ -124,6 +126,8 @@ class _CreateCaseFlowState extends ConsumerState<CreateCaseFlow> {
   Future<void> _submitCase() async {
     setState(() => _isSubmitting = true);
 
+    final user = ref.read(authProvider).user;
+
     final newCase = DisciplineCase(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       studentId: widget.studentId,
@@ -133,7 +137,8 @@ class _CreateCaseFlowState extends ConsumerState<CreateCaseFlow> {
       description: _descriptionController.text,
       severity: _urgency,
       timestamp: _selectedDate,
-      reportedBy: 'Faculty (You)',
+      reportedBy: user?.role.displayName ?? 'Faculty (You)',
+      reporterId: user?.id,
       proofImagePath: _capturedImage?.path,
     );
 

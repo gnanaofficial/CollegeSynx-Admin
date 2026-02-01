@@ -31,4 +31,6 @@ abstract class StudentRepository {
     List<List<double>> embeddings,
     Map<String, dynamic> metadata,
   );
+
+  Future<void> updateStudentCredits(String studentId, int newCredits);
 }

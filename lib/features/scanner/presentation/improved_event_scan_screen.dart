@@ -307,7 +307,25 @@ class _ImprovedEventScanScreenState
       body: Stack(
         children: [
           // Camera Preview
-          MobileScanner(controller: _controller, onDetect: _onDetect),
+          MobileScanner(
+            controller: _controller,
+            onDetect: _onDetect,
+            errorBuilder: (context, error, child) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.broken_image, color: Colors.red, size: 64),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Camera Error: ${error.errorCode}',
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
 
           // Scan Frame Overlay
           Center(

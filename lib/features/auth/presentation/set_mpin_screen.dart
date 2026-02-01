@@ -18,6 +18,28 @@ class _SetMpinScreenState extends ConsumerState<SetMpinScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isConfirming = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Optional: Auto-prompt for biometrics if available?
+    // Let's keep it manual for now to be less intrusive on "Set MPIN" screen
+  }
+
+  void _handleBiometricSetup() async {
+    final mpinService = ref.read(mpinServiceProvider);
+    final isAuthenticated = await mpinService.authenticateWithBiometrics();
+
+    if (isAuthenticated && mounted) {
+      // If authenticated with biometrics, we can set a default MPIN or just enable bio.
+      // Setting a dummy MPIN ensures the "isMpinSet" check passes in AppRouter.
+      // Using '0000' as a placeholder since they chose Biometrics.
+      await mpinService.setMpin('0000');
+      await mpinService.setBiometricEnabled(true);
+
+      _completeSetup();
+    }
+  }
+
   void _handleMpinSubmit() async {
     if (_formKey.currentState!.validate()) {
       if (!_isConfirming) {
@@ -31,26 +53,7 @@ class _SetMpinScreenState extends ConsumerState<SetMpinScreen> {
           await mpinService.setMpin(_mpinController.text);
           await mpinService.setBiometricEnabled(true); // Default enable bio
 
-          // Mark verified so strict router logic is satisfied
-          ref.read(authProvider.notifier).verifyMpin();
-
-          // Navigate to dashboard based on role
-          if (mounted) {
-            final userRole = ref.read(authProvider).user?.role;
-            String targetRoute = '/faculty-dashboard'; // Default fallback
-
-            if (userRole == UserRole.hod) {
-              targetRoute = '/hod-dashboard';
-            } else if (userRole == UserRole.securityAdmin) {
-              targetRoute = '/security-admin-dashboard';
-            } else if (userRole == UserRole.security) {
-              targetRoute = '/security-dashboard';
-            } else {
-              targetRoute = '/faculty-dashboard';
-            }
-
-            context.go(targetRoute);
-          }
+          _completeSetup();
         } else {
           ScaffoldMessenger.of(
             context,
@@ -61,6 +64,29 @@ class _SetMpinScreenState extends ConsumerState<SetMpinScreen> {
           });
         }
       }
+    }
+  }
+
+  void _completeSetup() {
+    // Mark verified so strict router logic is satisfied
+    ref.read(authProvider.notifier).verifyMpin();
+
+    // Navigate to dashboard based on role
+    if (mounted) {
+      final userRole = ref.read(authProvider).user?.role;
+      String targetRoute = '/faculty-dashboard'; // Default fallback
+
+      if (userRole == UserRole.hod) {
+        targetRoute = '/hod-dashboard';
+      } else if (userRole == UserRole.securityAdmin) {
+        targetRoute = '/security-admin-dashboard';
+      } else if (userRole == UserRole.security) {
+        targetRoute = '/security-dashboard';
+      } else {
+        targetRoute = '/faculty-dashboard';
+      }
+
+      context.go(targetRoute);
     }
   }
 
@@ -99,7 +125,7 @@ class _SetMpinScreenState extends ConsumerState<SetMpinScreen> {
                 _buildPinField(_mpinController, 'Enter 4-digit PIN'),
               if (_isConfirming)
                 _buildPinField(_confirmMpinController, 'Confirm 4-digit PIN'),
-              const SizedBox(height: 48),
+              const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -114,6 +140,30 @@ class _SetMpinScreenState extends ConsumerState<SetMpinScreen> {
                   child: Text(_isConfirming ? 'Confirm & Continue' : 'Next'),
                 ),
               ),
+              const SizedBox(height: 24),
+              // ADDED: Biometric Option
+              if (!_isConfirming)
+                Column(
+                  children: [
+                    const Text('OR'),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: _handleBiometricSetup,
+                      icon: const Icon(Icons.fingerprint, size: 28),
+                      label: const Text('Use Fingerprint / Face ID'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 12,
+                        ),
+                        side: const BorderSide(color: AppColors.primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
         ),

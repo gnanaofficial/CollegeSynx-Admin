@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../domain/entities/discipline_case.dart';
 import '../../discipline/presentation/case_detail_screen.dart';
-import '../../../data/repositories/mock_discipline_repository.dart';
+import '../../../data/providers/discipline_provider.dart';
 
 class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
